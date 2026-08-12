@@ -29,7 +29,7 @@ function MessageBubble(props: MessageBubbleProps) {
               : "bg-zinc-800"
           }`}
         >
-        {props.text}
+          {props.text}
         </div>
       </div>
     </div>

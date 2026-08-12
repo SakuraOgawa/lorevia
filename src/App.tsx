@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import './App.css'
 import ChatHeader from './components/ChatHeader'
 import MessageBubble from './components/MessageBubble'
+import ThinkingBubble from './components/ThinkingBubble'
 import { ArrowUp } from "lucide-react";
 
 function App() {
@@ -11,30 +12,13 @@ function App() {
     name: string;
     text: string;
   };
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      role: "assistant",
-      name: "AI",
-      text: "こんにちは",
-    },
-    {
-      id: 2,
-      role: "assistant",
-      name: "AI",
-      text: "Reactを勉強中です。",
-    },
-    {
-      id: 3,
-      role: "assistant",
-      name: "AI",
-      text: "Tailwind楽しい!",
-    }
-  ]);
-
+  const [messages, setMessages] = useState<Message[]>([]);
+  // 変数宣言
   const [inputText, setInputText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isThinking, setIsThinking] = useState(false);
+  // テキストエリアの高さ調整.
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
     if(!textarea) {
@@ -43,7 +27,8 @@ function App() {
     textarea.style.height = "auto";
     textarea.style.height = `${textarea.scrollHeight}px`
   }
-  const handleSend = () => {
+  // 入力.
+  const handleSend = async () => {
     if (inputText === "") {
       return;
     }
@@ -53,17 +38,59 @@ function App() {
       name: "さくら",
       text: inputText,
     }
-    setMessages([...messages, newMessage]);
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      newMessage,
+    ]);
+    const recentMessages = [
+      ...messages,
+      newMessage,
+    ]
+      .slice(-15)
+      .map((message) => ({
+        role: message.role,
+        content: message.text,
+      }));
+
+    setIsThinking(true);
+    
     setInputText("");
     if(textareaRef.current) {
       textareaRef.current.style.height = "auto"
     }
+
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages: recentMessages,
+      }),
+    });
+
+    const data = await response.json();
+
+    const aiMessage: Message = {
+      id: Date.now() + 1,
+      role: "assistant",
+      name: "AI",
+      text: data.reply,
+    };
+
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      aiMessage,
+    ]);
+
+    setIsThinking(false);
   }
+  // スクロールの動き.
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
       behavior: "smooth"
     });
-  }, [messages])
+  }, [messages, isThinking]);
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-950 text-white">
@@ -77,6 +104,8 @@ function App() {
             text={message.text}
           />
         )}
+
+        {isThinking && <ThinkingBubble/>}
         <div ref={messagesEndRef}></div>
       </main>
 
@@ -106,7 +135,7 @@ function App() {
                 if(e.shiftKey) return;
                 // ただの改行.
                 if(e.key !== "Enter") return;
-
+                // 早期リターン
                 e.preventDefault();
                 handleSend();
               }}
