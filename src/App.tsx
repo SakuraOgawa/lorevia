@@ -3,6 +3,7 @@ import './App.css'
 import ChatHeader from './components/ChatHeader'
 import MessageBubble from './components/MessageBubble'
 import ThinkingBubble from './components/ThinkingBubble'
+import ErrorToast from "./components/ErrorToast";
 import { ArrowUp } from "lucide-react";
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isThinking, setIsThinking] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   // テキストエリアの高さ調整.
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
@@ -55,35 +57,43 @@ function App() {
     setIsThinking(true);
     
     setInputText("");
-    if(textareaRef.current) {
-      textareaRef.current.style.height = "auto"
+    if(textareaRef.current) { textareaRef.current.style.height = "auto" }
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: recentMessages,
+        }),
+      });
+      if(!response.ok) { throw new Error("AIの生成に失敗しました。")}
+      const data = await response.json();
+
+      const aiMessage: Message = {
+        id: Date.now() + 1,
+        role: "assistant",
+        name: "AI",
+        text: data.reply,
+      };
+
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        aiMessage,
+      ]);
+    } catch (error) {
+      console.error("エラーが発生しました。", error)
+      setErrorMessage(
+        "AIの回答生成に失敗しました。もう一度お試しください。"
+      );
+      setTimeout(() => {
+        setErrorMessage("");
+      }, 5000);
+    } finally {
+      setIsThinking(false);
     }
-
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messages: recentMessages,
-      }),
-    });
-
-    const data = await response.json();
-
-    const aiMessage: Message = {
-      id: Date.now() + 1,
-      role: "assistant",
-      name: "AI",
-      text: data.reply,
-    };
-
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      aiMessage,
-    ]);
-
-    setIsThinking(false);
   }
   // スクロールの動き.
   useEffect(() => {
@@ -94,6 +104,9 @@ function App() {
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-950 text-white">
+      {errorMessage && (
+        <ErrorToast message={errorMessage} />
+      )}
       <ChatHeader />
       <main className="mx-auto w-full max-w-5xl p-4 pb-28">
         {messages.map((message) =>
