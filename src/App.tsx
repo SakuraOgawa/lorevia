@@ -69,7 +69,11 @@ function App() {
           messages: recentMessages,
         }),
       });
-      if(!response.ok) { throw new Error("AIの生成に失敗しました。")}
+      if(!response.ok) { 
+        const errorData = await response.json();
+        console.error("API error:", errorData);
+        throw new Error("AIの生成に失敗しました。")
+      }
       const data = await response.json();
 
       const aiMessage: Message = {
