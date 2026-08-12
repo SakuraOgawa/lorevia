@@ -43,6 +43,7 @@ export default async function handler(request: Request) {
     return new Response(
       JSON.stringify({
         error: "OpenAI API request failed",
+        
       }),
       {
         status: 500,
