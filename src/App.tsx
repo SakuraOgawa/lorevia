@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
+import type { Session } from "@supabase/supabase-js";
 import './App.css'
 import ChatHeader from './components/ChatHeader'
 import MessageBubble from './components/MessageBubble'
 import ThinkingBubble from './components/ThinkingBubble'
 import ErrorToast from "./components/ErrorToast";
+import LoginPage from './pages/LoginPage'
+import { supabase } from "./lib/supabase"
 import { ArrowUp } from "lucide-react";
 
 function App() {
@@ -20,6 +23,30 @@ function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isThinking, setIsThinking] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [session, setSession] = useState<Session | null>(null);
+  // ログアウト.
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) { console.error("ログアウトに失敗しました:", error)}
+  }
+
+  useEffect(() => {
+    const getSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+    };
+    getSession();
+
+    const { data: authListener } =
+      supabase.auth.onAuthStateChange((_event, session) => {
+        setSession(session);
+      });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
   // テキストエリアの高さ調整.
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
@@ -31,6 +58,8 @@ function App() {
   }
   // 入力.
   const handleSend = async () => {
+    if (!session) { return; }
+
     if (inputText === "") {
       return;
     }
@@ -64,6 +93,7 @@ function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           messages: recentMessages,
@@ -106,8 +136,18 @@ function App() {
     });
   }, [messages, isThinking]);
 
+  if (!session) {
+    return <LoginPage />;
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-zinc-950 text-white">
+      <button
+        onClick={handleLogout}
+        className="rounded-lg bg-zinc-800 px-4 py-2 hover:bg-zinc-700"
+      >
+        ログアウト
+      </button>
       {errorMessage && (
         <ErrorToast message={errorMessage} />
       )}
