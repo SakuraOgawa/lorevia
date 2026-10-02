@@ -16,7 +16,7 @@ function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">
       <div className="text-center">
         <h1 className="mb-6 text-3xl font-bold">
-          Zeta Clone
+          Lorevia
         </h1>
   
         <button 
